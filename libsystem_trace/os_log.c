@@ -140,6 +140,35 @@ _os_log_impl(void *dso, os_log_t log, os_log_type_t type, const char *format, ui
 	free((void *)buffer_hex);
 }
 
+/*
+ * Xcode (and other Apple binaries built against the 10.12+ SDK) expand
+ * os_log_error()/os_log_fault() into calls to these two private entry points
+ * rather than into _os_log_impl().  They were never added here, so dyld failed
+ * the lazy bind with
+ *
+ *     Symbol not found: __os_log_error_impl
+ *     Expected in: /usr/lib/libSystem.B.dylib
+ *
+ * and the process aborted.  Darwin declares them as
+ *
+ *     void _os_log_error_impl(void *dso, os_log_t log, os_log_type_t type,
+ *                             const void *buf, uint32_t size, uint16_t flags);
+ *
+ * with _os_log_fault_impl() identical.  We deliberately log nothing: the
+ * message has already been packed into `buf` by the caller, and decoding it is
+ * not worth the risk during startup.  The parameters are ignored, so the exact
+ * arity does not matter for ABI compatibility.
+ */
+void
+_os_log_error_impl(void *dso __unused, os_log_t log __unused, os_log_type_t type __unused,
+		const void *buf __unused, uint32_t size __unused, uint16_t flags __unused) {
+}
+
+void
+_os_log_fault_impl(void *dso __unused, os_log_t log __unused, os_log_type_t type __unused,
+		const void *buf __unused, uint32_t size __unused, uint16_t flags __unused) {
+}
+
 #pragma mark Legacy Functions
 
 os_log_t _os_log_create(void *dso __unused, const char *subsystem, const char *category) {
